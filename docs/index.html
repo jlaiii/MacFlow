@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MacFlow — Macro Recorder</title>
+<meta name="description" content="Record mouse & keyboard actions and replay them infinitely. A tape recorder for your computer.">
+<meta property="og:title" content="MacFlow — Macro Recorder">
+<meta property="og:description" content="Record, edit, and replay macros with glass-smooth 150fps cursor motion.">
+<meta property="og:url" content="https://jlaiii.github.io/MacFlow/">
+<meta property="og:type" content="website">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131c;
+    --border: #1e1e2e;
+    --text: #e0e0f0;
+    --muted: #8888aa;
+    --accent: #7c5cfc;
+    --accent-glow: #7c5cfc40;
+    --green: #3dd68c;
+    --red: #e5484d;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    line-height: 1.6;
+  }
+
+  /* ── animated particle canvas ────────────────────────── */
+  #particles {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* ── hero ────────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    text-align: center;
+    padding: 2rem;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.8rem, 8vw, 5.5rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #c4b5fd, #7c5cfc, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.5rem;
+  }
+
+  .hero .tagline {
+    font-size: 1.2rem;
+    color: var(--muted);
+    max-width: 520px;
+    margin-bottom: 2rem;
+  }
+
+  .hero .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.35rem 1rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+  }
+  .hero .badge .dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; }
+
+  .hero .cta {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .hero .cta a {
+    text-decoration: none;
+    padding: 0.7rem 1.8rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.25s;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 0 30px var(--accent-glow);
+  }
+  .btn-primary:hover { box-shadow: 0 0 50px var(--accent-glow); transform: translateY(-1px); }
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: var(--accent); }
+
+  /* ── sections ────────────────────────────────────────── */
+  section {
+    position: relative;
+    z-index: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 5rem 2rem;
+  }
+  section h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    letter-spacing: -0.02em;
+  }
+  section h2 span { color: var(--accent); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    transition: border-color 0.25s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card .icon { font-size: 1.8rem; margin-bottom: 0.75rem; }
+  .card h3 { font-size: 1.05rem; margin-bottom: 0.4rem; }
+  .card p { color: var(--muted); font-size: 0.9rem; }
+
+  /* ── hotkey table ────────────────────────────────────── */
+  .hotkeys {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .hotkeys td {
+    padding: 0.75rem 1.2rem;
+    font-size: 0.95rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .hotkeys td:first-child {
+    font-family: 'Consolas', 'Fira Code', monospace;
+    color: var(--accent);
+    font-weight: 600;
+    width: 140px;
+  }
+
+  /* ── install block ───────────────────────────────────── */
+  .install {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    font-family: 'Consolas', 'Fira Code', monospace;
+    font-size: 0.9rem;
+    overflow-x: auto;
+    line-height: 1.8;
+    position: relative;
+  }
+  .install .prompt { color: var(--muted); user-select: none; }
+  .install .cmd { color: var(--green); }
+  .install .comment { color: #555; }
+
+  /* ── footer ──────────────────────────────────────────── */
+  footer {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 3rem 2rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 2.2rem; }
+    section { padding: 3rem 1.2rem; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+
+<!-- ═══════════ HERO ═══════════ -->
+<div class="hero">
+  <div class="badge"><span class="dot"></span> v1.0 — free & open source</div>
+  <h1>MacFlow</h1>
+  <p class="tagline">Record mouse &amp; keyboard actions like a tape recorder. Replay them infinitely with glass-smooth 150 fps cursor motion.</p>
+  <div class="cta">
+    <a class="btn-primary" href="https://github.com/jlaiii/MacFlow">View on GitHub</a>
+    <a class="btn-secondary" href="#install">Get Started</a>
+  </div>
+</div>
+
+<!-- ═══════════ FEATURES ═══════════ -->
+<section id="features">
+  <h2><span>✦</span> Features</h2>
+  <div class="grid">
+    <div class="card">
+      <div class="icon">⏺</div>
+      <h3>Record Everything</h3>
+      <p>Mouse clicks, cursor movement, scroll wheel, and all keystrokes — captured with microsecond-precision timing.</p>
+    </div>
+    <div class="card">
+      <div class="icon">▶</div>
+      <h3>Buttery Playback</h3>
+      <p>Custom 150 fps path interpolation via direct OS cursor calls. No teleporting, no stutter — the cursor glides.</p>
+    </div>
+    <div class="card">
+      <div class="icon">✎</div>
+      <h3>Built-in Editor</h3>
+      <p>Double-click any action to tweak its delay. Delete unwanted steps. Insert manual pauses. Full control.</p>
+    </div>
+    <div class="card">
+      <div class="icon">∞</div>
+      <h3>Loop Forever</h3>
+      <p>Repeat macros N times or near-infinitely. Adjust speed from 0.25× to 10×. Automate any repetitive task.</p>
+    </div>
+    <div class="card">
+      <div class="icon">⌨</div>
+      <h3>Global Hotkeys</h3>
+      <p>F8 to record, F9 to stop, F10 to play, F11 to stop playback. All rebindable from the GUI.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🛡</div>
+      <h3>Auto-Stop Safety</h3>
+      <p>Move the mouse or press any key during playback and MacFlow halts instantly. You're always in control.</p>
+    </div>
+    <div class="card">
+      <div class="icon">⏱</div>
+      <h3>Record Delay</h3>
+      <p>Optional countdown before recording starts — switch to your target window, then the capture begins.</p>
+    </div>
+    <div class="card">
+      <div class="icon">💾</div>
+      <h3>Save &amp; Share</h3>
+      <p>Macros are plain JSON. Version-control them, share with teammates, or build a personal library.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ HOTKEYS ═══════════ -->
+<section id="hotkeys">
+  <h2><span>⌨</span> Default Hotkeys</h2>
+  <table class="hotkeys">
+    <tr><td>F8</td><td>Start recording</td></tr>
+    <tr><td>F9 / Esc</td><td>Stop recording</td></tr>
+    <tr><td>F10</td><td>Play macro</td></tr>
+    <tr><td>F11</td><td>Stop playback</td></tr>
+  </table>
+  <p style="margin-top:1rem;color:var(--muted);font-size:0.9rem;">All bindings can be changed from the dropdowns in the bottom bar.</p>
+</section>
+
+<!-- ═══════════ INSTALL ═══════════ -->
+<section id="install">
+  <h2><span>↓</span> Install</h2>
+  <div class="install">
+    <span class="prompt">$</span> <span class="cmd">git clone https://github.com/jlaiii/MacFlow.git</span><br>
+    <span class="prompt">$</span> <span class="cmd">cd MacFlow</span><br>
+    <span class="prompt">$</span> <span class="cmd">python macro_recorder.py</span><br>
+    <span class="comment"># That's it — dependencies auto-install on first run</span>
+  </div>
+  <p style="margin-top:1rem;color:var(--muted);font-size:0.9rem;">
+    Requires <strong>Python 3.10+</strong>. Windows recommended. Auto-installs <code>pynput</code>, <code>pyautogui</code>, and <code>customtkinter</code>.
+  </p>
+</section>
+
+<!-- ═══════════ FOOTER ═══════════ -->
+<footer>
+  <p>MacFlow — MIT License &nbsp;|&nbsp; <a href="https://github.com/jlaiii/MacFlow">GitHub</a> &nbsp;|&nbsp; Made with ♥</p>
+</footer>
+
+<script>
+/* ── floating particle background ──────────────────────── */
+const canvas = document.getElementById('particles');
+const ctx = canvas.getContext('2d');
+
+let w, h;
+const particles = [];
+const COUNT = 80;
+
+function resize() {
+  w = canvas.width = window.innerWidth;
+  h = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+class Particle {
+  constructor() {
+    this.reset();
+    this.y = Math.random() * h;
+  }
+  reset() {
+    this.x = Math.random() * w;
+    this.y = -10;
+    this.vx = (Math.random() - 0.5) * 0.4;
+    this.vy = Math.random() * 0.6 + 0.15;
+    this.r = Math.random() * 1.6 + 0.6;
+    this.alpha = Math.random() * 0.5 + 0.15;
+  }
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    if (this.y > h + 10 || this.x < -20 || this.x > w + 20) {
+      this.reset();
+      this.y = -10;
+    }
+  }
+  draw() {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(124,92,252,${this.alpha})`;
+    ctx.fill();
+  }
+}
+
+for (let i = 0; i < COUNT; i++) {
+  particles.push(new Particle());
+}
+
+function animate() {
+  ctx.clearRect(0, 0, w, h);
+  for (const p of particles) {
+    p.update();
+    p.draw();
+  }
+  // draw subtle connecting lines
+  for (let i = 0; i < particles.length; i++) {
+    for (let j = i + 1; j < particles.length; j++) {
+      const dx = particles[i].x - particles[j].x;
+      const dy = particles[i].y - particles[j].y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 110) {
+        ctx.beginPath();
+        ctx.moveTo(particles[i].x, particles[i].y);
+        ctx.lineTo(particles[j].x, particles[j].y);
+        ctx.strokeStyle = `rgba(124,92,252,${0.04 * (1 - dist / 110)})`;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+    }
+  }
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
+
+</body>
+</html>
