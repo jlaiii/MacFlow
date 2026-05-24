@@ -696,6 +696,11 @@ class App:
         ctk.CTkLabel(status_frame, textvariable=self.var_status,
                      font=FONT_SM, text_color="gray").pack(side="left")
 
+        credit = ctk.CTkLabel(status_frame, text="Made by jlaiii", font=("Segoe UI", 10),
+                              text_color="#7c5cfc", cursor="hand2")
+        credit.pack(side="right")
+        credit.bind("<Button-1>", lambda e: __import__("webbrowser").open("https://github.com/jlaiii/MacFlow"))
+
         # ESC closes app
         self.root.bind("<Escape>", lambda e: self.root.destroy())
 
