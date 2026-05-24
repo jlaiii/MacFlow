@@ -363,7 +363,7 @@ class Player:
                     self._mark_auto()
                     self._exec(a)
                     i += 1
-            if on_done and self.running:
+            if on_done:
                 on_done()
         except Exception as exc:
             print(f"[Player] {exc}")
@@ -478,8 +478,12 @@ class App:
         self.var_kb_stop = ctk.StringVar(value="f9")
         self.var_kb_play = ctk.StringVar(value="f10")
         self.var_kb_pstop= ctk.StringVar(value="f11")
+        self.var_profile = ctk.StringVar(value="")
         self._infinite = False
         self._delaying = False
+        self._profiles: dict[str, list[dict]] = {}
+        self._profiles_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "macflow_profiles.json")
+        self._load_profiles()
 
         self._build_ui()
         self._global_hotkeys()
@@ -532,6 +536,33 @@ class App:
             fg_color="#555555", hover_color="#444444", state="disabled",
         )
         self.btn_play_stop.pack(side="left", padx=2)
+
+        # ═══ row 0b — profile manager ═══
+        profile_bar = ctk.CTkFrame(self.root, fg_color="transparent")
+        profile_bar.pack(fill="x", padx=14, pady=(0, 4))
+
+        ctk.CTkLabel(profile_bar, text="Profile:", font=FONT_SM).pack(side="left", padx=(0, 4))
+        self.profile_combo = ctk.CTkOptionMenu(
+            profile_bar, values=[""], variable=self.var_profile,
+            font=FONT_SM, width=160, corner_radius=6,
+            command=lambda _: self._switch_profile(),
+        )
+        self.profile_combo.pack(side="left", padx=(0, 4))
+        self.profile_entry = ctk.CTkEntry(
+            profile_bar, textvariable=self.var_profile, font=FONT_SM,
+            width=160, height=28, corner_radius=6,
+        )
+        self.profile_entry.pack(side="left", padx=(0, 4))
+        ctk.CTkButton(
+            profile_bar, text="💾 Save Profile", command=self._save_profile,
+            font=FONT_SM, corner_radius=6, width=110, height=28,
+        ).pack(side="left", padx=2)
+        ctk.CTkButton(
+            profile_bar, text="🗑 Delete", command=self._delete_profile,
+            font=FONT_SM, corner_radius=6, width=70, height=28,
+            fg_color="#c42b1c", hover_color="#a02020",
+        ).pack(side="left", padx=2)
+        self._refresh_profile_list()
 
         # ═══ row 1 — file & edit buttons ═══
         edit_bar = ctk.CTkFrame(self.root, fg_color="transparent")
@@ -844,6 +875,55 @@ class App:
         self.var_status.set(f"Loaded ← {self._file}  ({len(self.actions)} actions)")
         self.root.title(f"Macro Recorder — {self._file}")
 
+    # ── profile manager ────────────────────────────────────────────────────────
+
+    def _load_profiles(self):
+        try:
+            with open(self._profiles_file, "r") as f:
+                self._profiles = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            self._profiles = {}
+
+    def _save_profiles_to_disk(self):
+        with open(self._profiles_file, "w") as f:
+            json.dump(self._profiles, f, indent=2)
+
+    def _refresh_profile_list(self):
+        names = list(self._profiles.keys())
+        self.profile_combo.configure(values=[""] + names)
+
+    def _save_profile(self):
+        name = self.var_profile.get().strip()
+        if not name:
+            self.var_status.set("Enter a profile name first")
+            return
+        if not self.actions:
+            self.var_status.set("No actions to save — record something first")
+            return
+        self._profiles[name] = [a.to_dict() for a in self.actions]
+        self._save_profiles_to_disk()
+        self._refresh_profile_list()
+        self.var_status.set(f"Profile '{name}' saved ({len(self.actions)} actions)")
+
+    def _switch_profile(self):
+        name = self.var_profile.get().strip()
+        if not name or name not in self._profiles:
+            return
+        self.actions = [Action.from_dict(a) for a in self._profiles[name]]
+        self._refresh()
+        self.var_profile.set(name)
+        self.var_status.set(f"Loaded profile '{name}' ({len(self.actions)} actions)")
+
+    def _delete_profile(self):
+        name = self.var_profile.get().strip()
+        if not name or name not in self._profiles:
+            return
+        del self._profiles[name]
+        self._save_profiles_to_disk()
+        self._refresh_profile_list()
+        self.var_profile.set("")
+        self.var_status.set(f"Deleted profile '{name}'")
+
     # ── editing ───────────────────────────────────────────────────────────────
 
     def _clear(self):
@@ -905,7 +985,7 @@ class App:
             self.btn_inf.configure(text="∞", fg_color="#1f538d")
         else:
             self._infinite = True
-            self.var_repeat.set("9999")
+            self.var_repeat.set("999999999")
             self.btn_inf.configure(text="1", fg_color="#c42b1c")
 
     # ── run ───────────────────────────────────────────────────────────────────
