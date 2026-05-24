@@ -801,7 +801,7 @@ class App:
         try:
             self.player.play(
                 self.actions, speed, loops,
-                on_done=lambda: self._defer(self._play_done),
+                on_done=lambda: self._defer(self._play_stop),
                 on_step=lambda i: self._defer(self._highlight, i),
             )
         except RuntimeError as e:
